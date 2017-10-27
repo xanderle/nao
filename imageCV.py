@@ -3,13 +3,23 @@ import numpy as np
 import cv2
 from naoqi import ALProxy
 
-if(len(sys.argv) <= 2):
-    print "parameter error"
-    print "python " + sys.argv[0] + " <ipaddr> <port>"
-    sys.exit()
+def StiffnessOn(proxy):
+    # We use the "Body" name to signify the collection of all joints
+    pNames = "Body"
+    pStiffnessLists = 1.0
+    pTimeLists = 1.0
+    proxy.stiffnessInterpolation(pNames, pStiffnessLists, pTimeLists)
 
-ip_addr = sys.argv[1]
-port_num = int(sys.argv[2])
+
+ip_addr = "192.168.2.120"
+port_num = 9559
+motionProxy=ALProxy("ALMotion",ip_addr,9559)
+postureProxy=ALProxy("ALRobotPosture",ip_addr,9559)
+
+StiffnessOn(motionProxy)
+postureProxy.goToPosture("StandInit",0.5)
+
+motionProxy.wbEnableEffectorControl("Head",False)
 
 # get NAOqi module proxy
 videoDevice = ALProxy('ALVideoDevice', ip_addr, port_num)
@@ -48,7 +58,7 @@ while True:
                 i += 3
 
         # show image
-        cv2.imshow("Big Brother"image)
+        cv2.imshow("Big Brother",image)
 
     # exit by [ESC]
     if cv2.waitKey(33) == 27:
