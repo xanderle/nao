@@ -124,7 +124,7 @@ while True:
 	# the frame
 	cv2.putText(frame, direction, (10, 30), cv2.FONT_HERSHEY_SIMPLEX,
 		0.65, (0, 0, 255), 3)
-	cv2.putText(frame, "dx: {}, dy: {}".format(dX, dY),
+	cv2.putText(frame, "x: {}, y: {}".format(x, y),
 		(10, frame.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX,
 		0.35, (0, 0, 255), 1)
 

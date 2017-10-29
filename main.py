@@ -33,19 +33,19 @@ from naoqi import ALProxy
 def main(robotIP):
 
     try:
-        postureProxy = ALProxy("ALRobotPosture", robotIP, 55164)
-        motion = ALProxy("ALMotion", robotIP, 55164)
+        postureProxy = ALProxy("ALRobotPosture", robotIP, 9559)
+        motion = ALProxy("ALMotion", robotIP, 9559)
     except Exception, e:
         print "Could not create proxy to ALRobotPosture"
         print "Error was: ", e
 
-    postureProxy.goToPosture("StandInit", 1.0)
+    postureProxy.goToPosture("StandInit", 1)
     while(1):
         direction = raw_input('Input l or r')
         if(direction == 'l'):
-            motion.moveToward(0, 1, 0)
+            motion.moveToward(0, 0.7, 0)
         elif(direction == 'r'):
-            motion.moveToward(0, -1, 0)
+            motion.moveToward(0, -0.7, 0)
         elif(direction == 's'):
             motion.moveToward(0, 0, 0)
 
@@ -53,7 +53,7 @@ def main(robotIP):
 
 
 if __name__ == "__main__":
-    robotIp = "127.0.0.1"
+    robotIp = "192.168.2.111"
 
     if len(sys.argv) <= 1:
         print "Usage python alrobotposture.py robotIP (optional default: 127.0.0.1)"
