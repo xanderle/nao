@@ -4,12 +4,12 @@ import cv2
 
 from naoqi import ALProxy
 
-ip_addr = "192.168.2.111"
+ip_addr = "192.168.0.100"
 port_num = 9559
 
 # get NAOqi module proxy
 videoDevice = ALProxy('ALVideoDevice', ip_addr, port_num)
-
+motion = ALProxy("ALMotion", ip_addr, port_num)
 # subscribe top camera
 AL_kTopCamera = 0
 AL_kQVGA = 1            # 320x240
@@ -22,6 +22,7 @@ width = 320
 height = 240
 image = np.zeros((height, width, 3), np.uint8)
 def feed():
+
     while True:
         # get image
         result = videoDevice.getImageRemote(captureDevice);
@@ -42,15 +43,49 @@ def feed():
                     i += 3
 
             # show image
-            drawCenterOfMass(image)
+            direction = drawCenterOfMass(image)
             cv2.line(image,(0,height/2),(width,height/2),(0,255,0),1)
             cv2.line(image,(width/2,0),(width/2,height),(0,255,0),1)
             cv2.imshow("Big Brother",image)
+            # centre head on ball
+            centerHead(direction)
+            # move left or right for ball
+            alignWithBall()
+
     	    #
         # exit by [ESC]
         if cv2.waitKey(33) == 27:
+            motion.moveToward(0,0,0)
             break
     videoDevice.unsubscribe(captureDevice)
+def alignWithBall():
+    angles = motion.getAngles("HeadYaw",True)
+    print angles
+    if angles[0] > 0.087:
+        motion.moveToward(0, 0.5, 0)
+    elif angles[0] < -0.087:
+        motion.moveToward(0, -0.5, 0)
+    else:
+        motion.moveToward(0,0,0)
+
+def centerHead(direction):
+    angles = motion.getAngles("HeadPitch",True)
+    #print(angles)
+
+    if(direction[1]=="u" and angles[0] > 0.3):
+        motion.changeAngles('HeadPitch',-0.1,0.1)
+    elif(direction[1]=="d"):
+        motion.changeAngles("HeadPitch",0.1,0.1)
+    elif(direction[1]=="s"):
+        motion.changeAngles("HeadPitch",0.0,0.1)
+    #print(direction)
+
+    if(direction[0] =='l'):
+        motion.changeAngles('HeadYaw',0.1,0.1)
+    elif(direction[0] =='r'):
+        motion.changeAngles('HeadYaw',-0.1,0.1)
+    elif(direction[0]=='s'):
+        motion.changeAngles('HeadYaw',0.0,0.1)
 
 def drawCenterOfMass(image):
     height,width,channels = image.shape
@@ -66,7 +101,8 @@ def drawCenterOfMass(image):
 		cv2.CHAIN_APPROX_SIMPLE)[-2]
     max_x = 0
     max_y = 0
-
+    dirX = "s"
+    dirY = "s"
     try:
         cnts = cv2.findContours(mask.copy(),cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)[-2]
         if len(cnts) > 0:
@@ -87,21 +123,21 @@ def drawCenterOfMass(image):
                     max_y = circles[1]
                     max_r = circles[2]
 
-        print"Out of if"
+
         dX = width/2 - circles[0]
-        print "dx", dX
+
         dY = height/2 - circles[1]
-        print "dy" ,dY
 
-        (dirX,dirY) = ("","")
 
-        if np.abs(dX) > 20:
-            dirX = "East" if np.sign(dX) == 1 else "West"
+        (dirX,dirY) = ("s","s")
+
+        if np.abs(dX) > 30:
+            dirX = "l" if np.sign(dX) == 1 else "r"
 
     # ensure there is significant movement in the
     # y-direction
-        if np.abs(dY) > 20:
-            dirY = "North" if np.sign(dY) == 1 else "South"
+        if np.abs(dY) > 30:
+            dirY = "u" if np.sign(dY) == 1 else "d"
 
     # handle when both directions are non-empty
         if dirX != "" and dirY != "":
@@ -117,10 +153,19 @@ def drawCenterOfMass(image):
         max_x = 0
         max_y = 0
 
-    CM = [max_y,max_x]
+    CM = [dirX,dirY]
+
     return CM
 
 def main():
+
+    motion.setStiffnesses("Body", 1.0)
+
+    postureProxy = ALProxy("ALRobotPosture", ip_addr, port_num)
+
+    postureProxy.goToPosture("StandInit", 0.2)
+
+    motion.setAngles("HeadPitch",0.3,0.1)
     feed()
 
 if __name__ == "__main__":
