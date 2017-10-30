@@ -11,7 +11,7 @@ port_num = 9559
 videoDevice = ALProxy('ALVideoDevice', ip_addr, port_num)
 motion = ALProxy("ALMotion", ip_addr, port_num)
 tts = ALProxy("ALTextToSpeech",ip_addr,port_num)
-tts.say("Looking for the ball!")
+
 
 
 # subscribe top camera
@@ -56,7 +56,6 @@ def feed():
             # move left or right for ball
             alignWithBall(direction)
 
-    	    #
         # exit by [ESC]
         if cv2.waitKey(33) == 27:
             motion.moveToward(0,0,0)
@@ -108,10 +107,11 @@ def drawCenterOfMass(image):
     max_y = 0
     dirX = "s"
     dirY = "s"
+
     try:
         cnts = cv2.findContours(mask.copy(),cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)[-2]
         if len(cnts) > 0:
-            tts.say("Found the ball!")
+            #tts.say("Found the ball!")
             c = max(cnts,key=cv2.contourArea)
             ((x,y),radius) = cv2.minEnclosingCircle(c)
             M=cv2.moments(c)
@@ -172,6 +172,7 @@ def main():
     postureProxy.goToPosture("StandInit", 0.2)
 
     motion.setAngles("HeadPitch",0.3,0.1)
+    tts.say("Looking for the ball!")
     feed()
 
 if __name__ == "__main__":
