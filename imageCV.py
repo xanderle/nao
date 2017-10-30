@@ -3,6 +3,9 @@ import numpy as np
 import cv2
 
 from naoqi import ALProxy
+from naoqi import ALModule
+from naoqi import ALBroker
+
 
 ip_addr = "192.168.0.100"
 port_num = 9559
@@ -25,6 +28,45 @@ captureDevice = videoDevice.subscribeCamera(
 width = 320
 height = 240
 image = np.zeros((height, width, 3), np.uint8)
+
+
+class FallDetectionModule(ALModule):
+    """ A simple module able to react
+    to facedetection events
+
+    """
+    def __init__(self, name):
+        ALModule.__init__(self, name)
+        # No need for IP and port here because
+        # we have our Python broker connected to NAOqi broker
+
+        # Create a proxy to ALTextToSpeech for later use
+        self.tts = ALProxy("ALTextToSpeech")
+
+        # Subscribe to the FaceDetected event:
+        global memory
+        memory = ALProxy("ALMemory")
+        memory.subscribeToEvent("robotHasFallen",
+            "FallDetection",
+            "FallDetected")
+
+    def FallDetected(self, *_args):
+        """ This will be called each time a face is
+        detected.
+
+        """
+        # Unsubscribe to the event when talking,
+        # to avoid repetitions
+        memory.unsubscribeToEvent("robotHasFallen",
+            "FallDetection")
+
+        self.tts.say("I have fallen")
+        postureProxy.goToPosture("StandInit", 0.2)
+        # Subscribe again to the event
+        memory.subscribeToEvent("robotHasFallen",
+            "FallDetection",
+            "FallDetected")
+
 def feed():
 
     while True:
@@ -58,9 +100,10 @@ def feed():
 
         # exit by [ESC]
         if cv2.waitKey(33) == 27:
-            motion.moveToward(0,0,0)
+            motion.moveToward(0, 0, 0)
             break
     videoDevice.unsubscribe(captureDevice)
+
 def alignWithBall(directions):
     angles = motion.getAngles("HeadYaw",True)
     print angles
@@ -164,8 +207,14 @@ def drawCenterOfMass(image):
     return CM
 
 def main():
+    myBroker = ALBroker("myBroker","0.0.0.0",   0,ip_addr,port_num)
+
 
     motion.setStiffnesses("Body", 1.0)
+
+    global FallDetection
+    FallDetection = FallDetectionModule("FallDetection")
+
 
     postureProxy = ALProxy("ALRobotPosture", ip_addr, port_num)
 
