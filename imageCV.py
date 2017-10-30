@@ -1,7 +1,7 @@
 import sys
 import numpy as np
 import cv2
-
+from copy import deepcopy
 from naoqi import ALProxy
 
 ip_addr = "192.168.0.100"
@@ -26,7 +26,9 @@ width = 320
 height = 240
 image = np.zeros((height, width, 3), np.uint8)
 def feed():
-
+    width = 320
+    height = 240
+    image = np.zeros((height, width, 3), np.uint8)
     while True:
         # get image
         result = videoDevice.getImageRemote(captureDevice);
@@ -47,14 +49,17 @@ def feed():
                     i += 3
 
             # show image
-            direction = drawCenterOfMass(image)
-            cv2.line(image,(0,height/2),(width,height/2),(0,255,0),1)
-            cv2.line(image,(width/2,0),(width/2,height),(0,255,0),1)
-            cv2.imshow("Big Brother",image)
+            frame = deepcopy(image)
+            alignBody(image,frame)
+            direction = drawCenterOfMass(image,frame)
+
+            cv2.line(frame,(0,height/2),(width,height/2),(0,255,0),1)
+            cv2.line(frame,(width/2,0),(width/2,height),(0,255,0),1)
+            cv2.imshow("Big Brother", frame)
             # centre head on ball
-            centerHead(direction)
+            #centerHead(direction)
             # move left or right for ball
-            alignWithBall(direction)
+            #alignWithBall(direction)
 
         # exit by [ESC]
         if cv2.waitKey(33) == 27:
@@ -63,15 +68,59 @@ def feed():
     videoDevice.unsubscribe(captureDevice)
 def alignWithBall(directions):
     angles = motion.getAngles("HeadYaw",True)
+
     print angles
     if angles[0] > 0.087:
-        motion.moveToward(0, 0.5, 0)
+        motion.moveToward(0, 1.5, 0)
     elif angles[0] < -0.087:
-        motion.moveToward(0, -0.5, 0)
+        motion.moveToward(0, 1.0, 0)
     elif directions[0]=="s":
         motion.moveToward(0,0,0)
     else:
         motion.moveToward(0,0,0)
+
+def alignBody(image,frame):
+
+    gray_image = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
+    mask_white = cv2.inRange(gray_image,200,255)
+    mask_image = cv2.bitwise_and(gray_image,mask_white)
+    kernel_size = 5,5
+    gauss_gray = cv2.GaussianBlur(mask_image,kernel_size,0)
+
+    low_threshold = 50
+    high_threshold = 150
+    canny_edges = cv2.Canny(gauss_gray,low_threshold,high_threshold)
+
+    lines = cv2.HoughLines(canny_edges,1,np.pi/180,100)
+
+    try:
+
+        for rho,theta in lines[0]:
+            a = np.cos(theta)
+            b = np.sin(theta)
+            x0 = a*rho
+            y0 = b*rho
+            x1 = int(x0 + 1000*(-b))
+            y1 = int(y0 + 1000*(a))
+            x2 = int(x0 - 1000*(-b))
+            y2 = int(y0 - 1000*(a))
+            cv2.line(frame,(x1,y1),(x2,y2),(0,0,255),2)
+            dy = y1-y2
+            #print dy
+            if np.abs(dy) > 20:
+
+                if np.sign(dy) == 1:
+                    motion.moveToward(0,0,0.1)
+                    return 'l'
+                else:
+                    motion.moveToward(0,0,-0.1)
+                    return 'r'
+            else:
+                motion.moveToward(0,0,0)
+                return 's'
+    except:
+        return 's'
+
 def centerHead(direction):
     angles = motion.getAngles("HeadPitch",True)
     #print(angles)
@@ -91,7 +140,7 @@ def centerHead(direction):
     elif(direction[0]=='s'):
         motion.changeAngles('HeadYaw',0.0,0.1)
 
-def drawCenterOfMass(image):
+def drawCenterOfMass(image,frame):
     height,width,channels = image.shape
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     redLower = np.array([0,100,100])
@@ -122,7 +171,7 @@ def drawCenterOfMass(image):
                 center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
                 if radius > 10:
 
-                    cv2.circle(image, (int(x), int(y)), int(radius),(0, 255, 255), 2)
+                    cv2.circle(frame, (int(x), int(y)), int(radius),(0, 255, 255), 2)
                     circles= x,y,radius
                     circles = np.uint16(np.around(circles))
                     max_x = circles[0]
