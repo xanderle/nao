@@ -41,7 +41,9 @@ while True:
 	# then we have reached the end of the video
 	if args.get("video") and not grabbed:
 		break
-
+	height,width, channels = frame.shape
+	#print "Height is", height
+	#print "Width is", width
 	# resize the frame, blur it, and convert it to the HSV
 	# color space
 	frame = imutils.resize(frame, width=600)
@@ -65,9 +67,12 @@ while True:
 		# find the largest contour in the mask, then use
 		# it to compute the minimum enclosing circle and
 		# centroid
+
 		c = max(cnts, key=cv2.contourArea)
 		((x, y), radius) = cv2.minEnclosingCircle(c)
-		M = cv2.moments(c)
+
+        M = cv2.moments(c)
+
         if(all(value == 0 for value in M.values())):
             continue
         else:
@@ -81,8 +86,10 @@ while True:
 				(0, 255, 255), 2)
 			    cv2.circle(frame, center, 5, (0, 0, 255), -1)
 			    pts.appendleft(center)
+
 	# loop over the set of tracked points
 	for i in np.arange(1, len(pts)):
+
 		# if either of the tracked points are None, ignore
 		# them
 		if pts[i - 1] is None or pts[i] is None:
@@ -94,14 +101,14 @@ while True:
 			# compute the difference between the x and y
 			# coordinates and re-initialize the direction
 			# text variables
-			dX = pts[-10][0] - pts[i][0]
-			dY = pts[-10][1] - pts[i][1]
-			(dirX, dirY) = ("", "")
+			dX = width/2 - pts[i][0]
+			dY = height/2 - pts[i][1]
+			(dirX, dirY) = ("S", "")
 
 			# ensure there is significant movement in the
 			# x-direction
 			if np.abs(dX) > 20:
-				dirX = "East" if np.sign(dX) == 1 else "West"
+				dirX = "Move Right" if np.sign(dX) == 1 else "Move Left"
 
 			# ensure there is significant movement in the
 			# y-direction
@@ -117,8 +124,9 @@ while True:
 				direction = dirX if dirX != "" else dirY
 		# otherwise, compute the thickness of the line and
 		# draw the connecting lines
-		thickness = int(np.sqrt(args["buffer"] / float(i + 1)) * 2.5)
-		cv2.line(frame, pts[i - 1], pts[i], (0, 0, 255), thickness)
+
+		#thickness = int(np.sqrt(args["buffer"] / float(i + 1)) * 2.5)
+		#cv2.line(frame, pts[i - 1], pts[i], (0, 0, 255), thickness)
 
 	# show the movement deltas and the direction of movement on
 	# the frame
@@ -129,6 +137,9 @@ while True:
 		0.35, (0, 0, 255), 1)
 
 	# show the frame to our screen and increment the frame counter
+	cv2.line(frame,(0,height/2),(width,height/2),(0,255,0),1)
+	cv2.line(frame,(width/2,0),(width/2,height),(0,255,0),1)
+
 	cv2.imshow("Frame", frame)
 	key = cv2.waitKey(1) & 0xFF
 	counter += 1
