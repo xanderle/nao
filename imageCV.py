@@ -4,7 +4,7 @@ import cv2
 
 from naoqi import ALProxy
 
-ip_addr = "169.254.232.44"
+ip_addr = "192.168.2.111"
 port_num = 9559
 
 # get NAOqi module proxy
