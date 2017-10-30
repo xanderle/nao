@@ -61,7 +61,7 @@ class FallDetectionModule(ALModule):
             "FallDetection")
 
         self.tts.say("I have fallen")
-        postureProxy.goToPosture("StandInit", 0.2)
+        postureProxy.goToPosture("StandInit", 0.4)
         # Subscribe again to the event
         memory.subscribeToEvent("robotHasFallen",
             "FallDetection",
