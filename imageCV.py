@@ -10,6 +10,10 @@ port_num = 9559
 # get NAOqi module proxy
 videoDevice = ALProxy('ALVideoDevice', ip_addr, port_num)
 motion = ALProxy("ALMotion", ip_addr, port_num)
+tts = ALProxy("ALTextToSpeech",ip_addr,port_num)
+tts.say("Looking for the ball!")
+
+
 # subscribe top camera
 AL_kTopCamera = 0
 AL_kQVGA = 1            # 320x240
@@ -50,7 +54,7 @@ def feed():
             # centre head on ball
             centerHead(direction)
             # move left or right for ball
-            alignWithBall()
+            alignWithBall(direction)
 
     	    #
         # exit by [ESC]
@@ -58,16 +62,17 @@ def feed():
             motion.moveToward(0,0,0)
             break
     videoDevice.unsubscribe(captureDevice)
-def alignWithBall():
+def alignWithBall(directions):
     angles = motion.getAngles("HeadYaw",True)
     print angles
     if angles[0] > 0.087:
         motion.moveToward(0, 0.5, 0)
     elif angles[0] < -0.087:
         motion.moveToward(0, -0.5, 0)
+    elif directions[0]=="s":
+        motion.moveToward(0,0,0)
     else:
         motion.moveToward(0,0,0)
-
 def centerHead(direction):
     angles = motion.getAngles("HeadPitch",True)
     #print(angles)
@@ -106,6 +111,7 @@ def drawCenterOfMass(image):
     try:
         cnts = cv2.findContours(mask.copy(),cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)[-2]
         if len(cnts) > 0:
+            tts.say("Found the ball!")
             c = max(cnts,key=cv2.contourArea)
             ((x,y),radius) = cv2.minEnclosingCircle(c)
             M=cv2.moments(c)
