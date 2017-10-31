@@ -50,7 +50,7 @@ def feed():
 
             # show image
             frame = deepcopy(image)
-            alignBody(image,frame)
+            # alignBody(image,frame)
             direction = drawCenterOfMass(image,frame)
 
             cv2.line(frame,(0,height/2),(width,height/2),(0,255,0),1)
@@ -59,7 +59,7 @@ def feed():
             # centre head on ball
             #centerHead(direction)
             # move left or right for ball
-            #alignWithBall(direction)
+            alignWithBall(direction)
 
         # exit by [ESC]
         if cv2.waitKey(33) == 27:
@@ -67,12 +67,13 @@ def feed():
             break
     videoDevice.unsubscribe(captureDevice)
 def alignWithBall(directions):
+    print directions
     angles = motion.getAngles("HeadYaw",True)
     #print angles
-    if angles[0] > 0.087:
-        motion.moveToward(0, 0.5, 0)
-    elif angles[0] < -0.087:
-        motion.moveToward(0, -0.5, 0)
+    if directions[0] == 'l':
+        motion.moveToward(0, 0.8, 0)
+    elif directions[0] == 'r':
+        motion.moveToward(0, -0.8, 0)
     elif directions[0]=="s":
         motion.moveToward(0,0,0)
     else:
