@@ -57,31 +57,35 @@ def feed():
             cv2.line(frame,(width/2,0),(width/2,height),(0,255,0),1)
             cv2.imshow("Big Brother", frame)
             # centre head on ball
-            #centerHead(direction)
+            centerHead(direction)
             # move left or right for ball
-            #alignWithBall(direction)
+            alignWithBall(direction)
 
         # exit by [ESC]
         if cv2.waitKey(33) == 27:
-            motion.moveToward(0,0,0)
+            # motion.moveToward(0,0,0)
+            print "stop"
             break
     videoDevice.unsubscribe(captureDevice)
 def alignWithBall(directions):
     angles = motion.getAngles("HeadYaw",True)
     #print angles
     if angles[0] > 0.087:
-        motion.moveToward(0, 0.5, 0)
+        # motion.moveToward(0, 0.5, 0)
+        print 'move left(backwards)'
     elif angles[0] < -0.087:
-        motion.moveToward(0, -0.5, 0)
+        # motion.moveToward(0, -0.5, 0)
+        print 'move right(backwards)'
     elif directions[0]=="s":
-        motion.moveToward(0,0,0)
+        # motion.moveToward(0,0,0)
+        print 'stop'
     else:
-        motion.moveToward(0,0,0)
-
+        # motion.moveToward(0,0,0)
+        print 'stop'
 def alignBody(image,frame):
 
     gray_image = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
-    mask_white = cv2.inRange(gray_image,200,255)
+    mask_white = cv2.inRange(gray_image,0,55)
     mask_image = cv2.bitwise_and(gray_image,mask_white)
     kernel_size = 5,5
     gauss_gray = cv2.GaussianBlur(mask_image,kernel_size,0)
@@ -109,10 +113,10 @@ def alignBody(image,frame):
             if np.abs(dy) > 20:
 
                 if np.sign(dy) == 1:
-                    motion.moveToward(0,0,0.1)
+                    # motion.moveToward(0,0,0.1)
                     return 'l'
                 else:
-                    motion.moveToward(0,0,-0.1)
+                    # motion.moveToward(0,0,-0.1)
                     return 'r'
             else:
                 motion.moveToward(0,0,0)
@@ -213,13 +217,14 @@ def drawCenterOfMass(image,frame):
 
 def main():
 
-    motion.setStiffnesses("Body", 1.0)
-
+    # motion.setStiffnesses("Body", 1.0)
+    print 'I\'m hard!'
     postureProxy = ALProxy("ALRobotPosture", ip_addr, port_num)
 
-    postureProxy.goToPosture("StandInit", 0.2)
-
-    motion.setAngles("HeadPitch",0.3,0.1)
+    # postureProxy.goToPosture("StandInit", 0.2)
+    print 'I\'m standing'
+    # motion.setAngles("HeadPitch",0.3,0.1)
+    print 'Head downwards'
     tts.say("Looking for the ball!")
     feed()
 
