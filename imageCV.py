@@ -28,9 +28,10 @@ image = np.zeros((height, width, 3), np.uint8)
 prevSec = ["0","0"]
 
 def feed(motionBool):
-    prevSec = ["0","0"]
 
-    state = 'pitchAlign'
+    state = 'pitchalign'
+    tts.say("I'm aligning with the pitch")
+
     width = 320
     height = 240
     image = np.zeros((height, width, 3), np.uint8)
@@ -116,7 +117,6 @@ def alignWithBall(directions,motionBool):
             motion.moveToward(0, 0, 0)
 
 def alignBody(image,frame, motionBool):
-    # tts.say("I'm aligning with the pitch")
     gray_image = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
     mask_white = cv2.inRange(gray_image,0,80)
     mask_image = cv2.bitwise_and(gray_image,mask_white)
