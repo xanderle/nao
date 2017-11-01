@@ -31,6 +31,10 @@ image = np.zeros((height, width, 3), np.uint8)
 
 
 class FallDetectionModule(ALModule):
+    """ A simple module able to react
+    to facedetection events
+
+    """
     def __init__(self, name):
         ALModule.__init__(self, name)
         # No need for IP and port here because
@@ -40,24 +44,24 @@ class FallDetectionModule(ALModule):
         # Subscribe to the FaceDetected event:
         global memory
         memory = ALProxy("ALMemory")
-        memory.subscribeToEvent("robotHasFallen",
-            "FallDetection",
-            "FallDetected")
+        memory.subscribeToEvent("RobotFell")
 
     def FallDetected(self, *_args):
+        """ This will be called each time a face is
+        detected.
+
+        """
         # Unsubscribe to the event when talking,
         # to avoid repetitions
-        memory.unsubscribeToEvent("robotHasFallen",
-            "FallDetection")
+        memory.subscribeToEvent("RobotFell")
 
         self.tts.say("I have fallen")
         # Send robot to Stand Init
         postureProxy.goToPosture("StandInit", 0.5)
 
         # Subscribe again to the event
-        memory.subscribeToEvent("robotHasFallen",
-            "FallDetection",
-            "FallDetected")
+        memory.subscribeToEvent("RobotFell")
+
 
 
 def feed(motionBool):
@@ -274,7 +278,7 @@ def drawCenterOfMass(image,frame):
                     max_r = circles[2]
 
                     diameter = radius*2
-                    actual_diameter = 125
+                    actual_diameter = 65
                     focal_length = 300
                     calculated_cam_dist = actual_diameter*focal_length/diameter
                     theta = motion.getAngles("HeadPitch", True)
@@ -330,7 +334,6 @@ def main():
        ip_addr,         # parent broker IP
        port_num)       # parent broker port
 
-
     if motionBool:
         motion.setStiffnesses("Body", 1.0)
 
@@ -342,10 +345,15 @@ def main():
     motion.setAngles("HeadPitch", 0.3, 0.1)
     tts.say("I'm starting to goal")
 
-    global FallDetection
-    FallDetection = FallDetectionModule("FallDetection")
+    # FallDetection = FallDetectionModule("FallDetection")
+    try:
+        feed(motionBool)
+    except KeyboardInterrupt:
+        print "Interrupted by user, shutting down"
+        myBroker.shutdown()
+        videoDevice.unsubscribe(captureDevice)
+        sys.exit(0)
 
-    feed(motionBool)
 
 if __name__ == "__main__":
     main()
