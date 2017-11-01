@@ -5,7 +5,7 @@ from copy import deepcopy
 from naoqi import ALProxy
 import argparse
 
-ip_addr = "192.168.2.104"
+ip_addr = "169.254.211.199"
 port_num = 9559
 
 # get NAOqi module proxy
@@ -25,9 +25,12 @@ captureDevice = videoDevice.subscribeCamera(
 width = 320
 height = 240
 image = np.zeros((height, width, 3), np.uint8)
+prevSec = ["0","0"]
 
 def feed(motionBool):
-    state = 'pitchalign'
+    prevSec = ["0","0"]
+
+    state = 'pitchAlign'
     width = 320
     height = 240
     image = np.zeros((height, width, 3), np.uint8)
@@ -54,19 +57,32 @@ def feed(motionBool):
 
             # show image
             frame = deepcopy(image)
-            if state == 'pitchalign':
-                alignBody(image,frame,motionBool)
+            if state == 'pitchAlign':
+                res = alignBody(image,frame,motionBool)
+                if (res == "s"):
+
+                    state = 'ballAlign'
 
             direction = drawCenterOfMass(image,frame)
 
             cv2.line(frame,(0,height/2),(width,height/2),(0,255,0),1)
             cv2.line(frame,(width/2,0),(width/2,height),(0,255,0),1)
             cv2.imshow("Big Brother", frame)
+            cv2.imwrite("file.png",frame)
+            if(prevSec == ["l","d"] and direction == ["0","0"]):
+                tts.say("Dive Left")
+                print("Raise Left")
+            if(prevSec == ["r","d"] and direction == ["0","0"]):
+                tts.say("Dive Right")
+                print("Raise Right")
             # centre head on ball
             # centerHead(direction)
             # move left or right for ball
-            if state == 'ballalign':
+            if state == 'ballAlign':
                 alignWithBall(direction, motionBool)
+            if direction[0]=="s":
+                state = "pitchAlign"
+            prevSec = direction
 
         # exit by [ESC]
         if cv2.waitKey(33) == 27:
@@ -78,13 +94,14 @@ def feed(motionBool):
 
 def alignWithBall(directions,motionBool):
     print directions
-    tts.say("I'm guarding the goal!")
+
     angles = motion.getAngles("HeadYaw",True)
     #print angles
     if directions[0] == 'l':
         print 'Moving Left'
         if motionBool:
             motion.moveToward(0, 0.8, 0)
+
     elif directions[0] == 'r':
         print 'Moving Right'
         if motionBool:
@@ -112,9 +129,7 @@ def alignBody(image,frame, motionBool):
     canny_edges = cv2.Canny(gauss_gray,low_threshold,high_threshold)
 
     lines = cv2.HoughLines(canny_edges,1,np.pi/180,100)
-
     try:
-
         for rho,theta in lines[0]:
             a = np.cos(theta)
             b = np.sin(theta)
@@ -128,7 +143,6 @@ def alignBody(image,frame, motionBool):
             dy = y1-y2
             #print dy
             if np.abs(dy) >= 35:
-
                 if np.sign(dy) == 1:
                     if motionBool:
                         motion.moveToward(0,0,0.1)
@@ -175,10 +189,15 @@ def clearBall(motionProxy):
 def drawCenterOfMass(image,frame):
     height,width,channels = image.shape
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-    redLower = np.array([0,100,100])
-    redUpper = np.array([5,255,255])
-
+    #redLower = np.array([0,100,100])
+    #redUpper = np.array([5,255,255])
+    redLower = np.array([167,140,50])
+    redUpper = np.array([187,191,157])
     mask = cv2.inRange(hsv, redLower, redUpper)
+    redLower = np.array([-10,155,70])
+    redUpper = np.array([10,175,153])
+    mask1 = cv2.inRange(hsv,redLower,redUpper)
+    mask = cv2.addWeighted(mask,1.0,mask1,1,0,0)
     mask = cv2.dilate(mask, None, iterations=2)
     mask = cv2.erode(mask, None, iterations=2)
 
@@ -201,7 +220,7 @@ def drawCenterOfMass(image,frame):
             else:
                 #print(x,y,radius)
                 center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
-                if radius > 10:
+                if radius > 8:
 
                     cv2.circle(frame, (int(x), int(y)), int(radius),(0, 255, 255), 2)
                     circles= x,y,radius
@@ -237,8 +256,9 @@ def drawCenterOfMass(image,frame):
 
 
     except:
-        max_x = 0
-        max_y = 0
+        #tts.say("I lost the ball!")
+        dirX = "0"
+        dirY = "0"
 
     CM = [dirX,dirY]
 
