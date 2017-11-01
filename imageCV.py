@@ -1,12 +1,14 @@
 import sys
 import numpy as np
 import cv2
+import time
 from copy import deepcopy
 from naoqi import ALProxy
 from naoqi import ALModule
 from naoqi import ALBroker
 import argparse
-
+import math
+import almath
 ip_addr = "192.168.0.101"
 port_num = 9559
 
@@ -14,7 +16,7 @@ port_num = 9559
 videoDevice = ALProxy('ALVideoDevice', ip_addr, port_num)
 motion = ALProxy("ALMotion", ip_addr, port_num)
 tts = ALProxy("ALTextToSpeech", ip_addr, port_num)
-
+postureProxy = ALProxy("ALRobotPosture", ip_addr, port_num)
 global distance
 distance = 0
 # subscribe top camera
@@ -164,6 +166,7 @@ def alignWithBall(directions,motionBool):
 
 def alignBody(image,frame, motionBool):
     gray_image = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
+    ##UNCOMMENT THIS ONE
     #mask_white = cv2.inRange(gray_image,0,80)
     mask_white = cv2.inRange(gray_image,200,255)
     mask_image = cv2.bitwise_and(gray_image,mask_white)
@@ -228,10 +231,86 @@ def centerHead(direction):
     #     motion.changeAngles('HeadYaw',0.0,0.1)
 
 def clearBall(motionProxy):
-    motionProxy.moveTo(0.5, 0.0, 0.0)
+    motionProxy.moveTo(0.3, 0.0, 0.0)
     motionProxy.waitUntilMoveIsFinished()
-    motionProxy.moveTo(-0.5, 0.0, 0.0)
+    kick()
+    motionProxy.moveTo(-0.3, 0.0, 0.0)
     motionProxy.waitUntilMoveIsFinished()
+
+def kick():
+    postureProxy.goToPosture("StandInit", 0.5)
+
+    # Activate Whole Body Balancer
+    isEnabled  = True
+    motion.wbEnable(isEnabled)
+
+    # Legs are constrained fixed
+    stateName  = "Fixed"
+    supportLeg = "Legs"
+    motion.wbFootState(stateName, supportLeg)
+
+    # Constraint Balance Motion
+    isEnable   = True
+    supportLeg = "Legs"
+    motion.wbEnableBalanceConstraint(isEnable, supportLeg)
+
+    # Com go to LLeg
+    supportLeg = "LLeg"
+    duration   = 2.0
+    motion.wbGoToBalance(supportLeg, duration)
+
+    # RLeg is free
+    stateName  = "Free"
+    supportLeg = "RLeg"
+    motion.wbFootState(stateName, supportLeg)
+
+    # RLeg is optimized
+    effector = "RLeg"
+    axisMask = 63
+    frame    = motion.FRAME_WORLD
+
+    # Motion of the RLeg
+    times   = [2.0, 2.7, 4.5]
+
+    path = computePath(motion,effector, frame)
+
+    motion.transformInterpolations(effector, frame, path, axisMask, times)
+
+    postureProxy.goToPosture("StandInit", 0.3)
+
+    time.sleep(10000)
+def computePath(proxy,effector, frame):
+    dx      = 0.05                 # translation axis X (meters)
+    dz      = 0.05                 # translation axis Z (meters)
+    dwy     = 5.0*almath.TO_RAD    # rotation axis Y (radian)
+
+    useSensorValues = False
+
+    path = []
+    currentTf = []
+    try:
+        currentTf = proxy.getTransform(effector, frame, useSensorValues)
+    except Exception, errorMsg:
+        print str(errorMsg)
+        print "This example is not allowed on this robot."
+        exit()
+
+    # 1
+    targetTf  = almath.Transform(currentTf)
+    targetTf *= almath.Transform(-dx, 0.0, dz)
+    targetTf *= almath.Transform().fromRotY(dwy)
+    path.append(list(targetTf.toVector()))
+
+    # 2
+    targetTf  = almath.Transform(currentTf)
+    targetTf *= almath.Transform(dx, 0.0, dz)
+    path.append(list(targetTf.toVector()))
+
+    # 3
+    path.append(currentTf)
+
+    return path
+
 
 def drawCenterOfMass(image,frame):
     height,width,channels = image.shape
@@ -337,15 +416,12 @@ def main():
     if motionBool:
         motion.setStiffnesses("Body", 1.0)
 
-    postureProxy = ALProxy("ALRobotPosture", ip_addr, port_num)
-
     if motionBool:
         postureProxy.goToPosture("StandInit", 0.2)
 
     motion.setAngles("HeadPitch", 0.3, 0.1)
     tts.say("I'm starting to goal")
 
-    # FallDetection = FallDetectionModule("FallDetection")
     try:
         feed(motionBool)
     except KeyboardInterrupt:
@@ -354,6 +430,8 @@ def main():
         videoDevice.unsubscribe(captureDevice)
         sys.exit(0)
 
+    global FallDetection
+    FallDetection = FallDetectionModule("FallDetection")
 
 if __name__ == "__main__":
     main()
