@@ -100,8 +100,14 @@ def alignWithBall(directions,motionBool):
 def alignBody(image,frame, motionBool):
     # tts.say("I'm aligning with the pitch")
     gray_image = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
-    mask_white = cv2.inRange(gray_image,0,55)
+    mask_white = cv2.inRange(gray_image,200,255)
     mask_image = cv2.bitwise_and(gray_image,mask_white)
+    for i in mask_image:
+        for j in i:
+            if j == 1:
+                j=0
+            elif j == 0:
+                j=1
     kernel_size = 5,5
     gauss_gray = cv2.GaussianBlur(mask_image,kernel_size,0)
 
@@ -163,6 +169,12 @@ def centerHead(direction):
         motion.changeAngles('HeadYaw',-0.1,0.1)
     elif(direction[0]=='s'):
         motion.changeAngles('HeadYaw',0.0,0.1)
+
+def clearBall(motionProxy):
+    motionProxy.moveTo(0.5, 0.0, 0.0)
+    motionProxy.waitUntilMoveIsFinished()
+    motionProxy.moveTo(-0.5, 0.0, 0.0)
+    motionProxy.waitUntilMoveIsFinished()
 
 def drawCenterOfMass(image,frame):
     height,width,channels = image.shape
