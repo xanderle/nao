@@ -5,15 +5,13 @@ from copy import deepcopy
 from naoqi import ALProxy
 import argparse
 
-ip_addr = "192.168.2.100"
+ip_addr = "192.168.2.104"
 port_num = 9559
 
 # get NAOqi module proxy
 videoDevice = ALProxy('ALVideoDevice', ip_addr, port_num)
 motion = ALProxy("ALMotion", ip_addr, port_num)
 tts = ALProxy("ALTextToSpeech", ip_addr, port_num)
-
-state = None
 
 
 # subscribe top camera
@@ -28,10 +26,12 @@ width = 320
 height = 240
 image = np.zeros((height, width, 3), np.uint8)
 def feed(motionBool):
+    state = 'pitchalign'
     width = 320
     height = 240
     image = np.zeros((height, width, 3), np.uint8)
     while True:
+        print 'Live feed'
         # get image
         result = videoDevice.getImageRemote(captureDevice);
 
@@ -40,6 +40,7 @@ def feed(motionBool):
         elif result[6] == None:
             print 'no image data string.'
         else:
+            print state
             # translate value to mat
             values = map(ord, list(result[6]))
             i = 0
@@ -97,9 +98,9 @@ def alignWithBall(directions,motionBool):
             motion.moveToward(0, 0, 0)
 
 def alignBody(image,frame, motionBool):
-    tts.say("I'm realligning with the pitch")
+    # tts.say("I'm aligning with the pitch")
     gray_image = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
-    mask_white = cv2.inRange(gray_image,200,255)
+    mask_white = cv2.inRange(gray_image,0,55)
     mask_image = cv2.bitwise_and(gray_image,mask_white)
     kernel_size = 5,5
     gauss_gray = cv2.GaussianBlur(mask_image,kernel_size,0)
@@ -254,7 +255,6 @@ def main():
     motion.setAngles("HeadPitch", 0.3, 0.1)
     tts.say("I'm starting to goal")
 
-    state = 'pitchalign'
     feed(motionBool)
 
 if __name__ == "__main__":
