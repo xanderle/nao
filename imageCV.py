@@ -27,7 +27,10 @@ height = 240
 image = np.zeros((height, width, 3), np.uint8)
 
 def feed(motionBool):
+
     state = 'pitchalign'
+    tts.say("I'm aligning with the pitch")
+
     width = 320
     height = 240
     image = np.zeros((height, width, 3), np.uint8)
@@ -56,6 +59,8 @@ def feed(motionBool):
             frame = deepcopy(image)
             if state == 'pitchalign':
                 alignBody(image,frame,motionBool)
+                if alignBody = 's':
+                    state == 'ballalign'
 
             direction = drawCenterOfMass(image,frame)
 
@@ -99,7 +104,6 @@ def alignWithBall(directions,motionBool):
             motion.moveToward(0, 0, 0)
 
 def alignBody(image,frame, motionBool):
-    # tts.say("I'm aligning with the pitch")
     gray_image = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
     mask_white = cv2.inRange(gray_image,0,80)
     mask_image = cv2.bitwise_and(gray_image,mask_white)
