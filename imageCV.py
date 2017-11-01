@@ -25,13 +25,14 @@ captureDevice = videoDevice.subscribeCamera(
 width = 320
 height = 240
 image = np.zeros((height, width, 3), np.uint8)
+
 def feed(motionBool):
     state = 'pitchalign'
     width = 320
     height = 240
     image = np.zeros((height, width, 3), np.uint8)
     while True:
-        print 'Live feed'
+        #print 'Live feed'
         # get image
         result = videoDevice.getImageRemote(captureDevice);
 
@@ -100,14 +101,9 @@ def alignWithBall(directions,motionBool):
 def alignBody(image,frame, motionBool):
     # tts.say("I'm aligning with the pitch")
     gray_image = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
-    mask_white = cv2.inRange(gray_image,200,255)
+    mask_white = cv2.inRange(gray_image,0,80)
     mask_image = cv2.bitwise_and(gray_image,mask_white)
-    for i in mask_image:
-        for j in i:
-            if j == 1:
-                j=0
-            elif j == 0:
-                j=1
+    #cv2.imshow("Mask White",mask_white);
     kernel_size = 5,5
     gauss_gray = cv2.GaussianBlur(mask_image,kernel_size,0)
 
@@ -131,17 +127,17 @@ def alignBody(image,frame, motionBool):
             cv2.line(frame,(x1,y1),(x2,y2),(0,0,255),2)
             dy = y1-y2
             #print dy
-            if np.abs(dy) > 20:
+            if np.abs(dy) >= 35:
 
                 if np.sign(dy) == 1:
                     if motionBool:
                         motion.moveToward(0,0,0.1)
-                        print 'rotating Left'
+                    print 'rotating Left'
                     return 'l'
                 else:
                     if motionBool:
                         motion.moveToward(0,0,-0.1)
-                        print 'rotating right'
+                    print 'rotating right'
                     return 'r'
             else:
                 if motionBool:
