@@ -5,7 +5,7 @@ from copy import deepcopy
 from naoqi import ALProxy
 import argparse
 
-ip_addr = "192.168.0.100"
+ip_addr = "192.168.2.100"
 port_num = 9559
 
 # get NAOqi module proxy
@@ -13,6 +13,7 @@ videoDevice = ALProxy('ALVideoDevice', ip_addr, port_num)
 motion = ALProxy("ALMotion", ip_addr, port_num)
 tts = ALProxy("ALTextToSpeech", ip_addr, port_num)
 
+state = None
 
 
 # subscribe top camera
@@ -51,16 +52,19 @@ def feed(motionBool):
 
             # show image
             frame = deepcopy(image)
-            # alignBody(image,frame)
+            if state == 'pitchalign':
+                alignBody(image,frame,motionBool)
+
             direction = drawCenterOfMass(image,frame)
 
             cv2.line(frame,(0,height/2),(width,height/2),(0,255,0),1)
             cv2.line(frame,(width/2,0),(width/2,height),(0,255,0),1)
             cv2.imshow("Big Brother", frame)
             # centre head on ball
-            #centerHead(direction)
+            # centerHead(direction)
             # move left or right for ball
-            alignWithBall(direction)
+            if state == 'ballalign':
+                alignWithBall(direction, motionBool)
 
         # exit by [ESC]
         if cv2.waitKey(33) == 27:
@@ -72,6 +76,7 @@ def feed(motionBool):
 
 def alignWithBall(directions,motionBool):
     print directions
+    tts.say("I'm guarding the goal!")
     angles = motion.getAngles("HeadYaw",True)
     #print angles
     if directions[0] == 'l':
@@ -91,8 +96,8 @@ def alignWithBall(directions,motionBool):
         if motionBool:
             motion.moveToward(0, 0, 0)
 
-def alignBody(image,frame):
-
+def alignBody(image,frame, motionBool):
+    tts.say("I'm realligning with the pitch")
     gray_image = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
     mask_white = cv2.inRange(gray_image,200,255)
     mask_image = cv2.bitwise_and(gray_image,mask_white)
@@ -122,13 +127,19 @@ def alignBody(image,frame):
             if np.abs(dy) > 20:
 
                 if np.sign(dy) == 1:
-                    motion.moveToward(0,0,0.1)
+                    if motionBool:
+                        motion.moveToward(0,0,0.1)
+                        print 'rotating Left'
                     return 'l'
                 else:
-                    motion.moveToward(0,0,-0.1)
+                    if motionBool:
+                        motion.moveToward(0,0,-0.1)
+                        print 'rotating right'
                     return 'r'
             else:
-                motion.moveToward(0,0,0)
+                if motionBool:
+                    motion.moveToward(0,0,0)
+                print 'Stopping motion'
                 return 's'
     except:
         return 's'
@@ -230,20 +241,20 @@ def main():
     parser.add_argument('-mEnabled', action='store_true', default=False)
     args = parser.parse_args()
 
-    print 'hi'
     motionBool = args.mEnabled
 
-    motion.setStiffnesses("Body", 1.0)
+    if motionBool:
+        motion.setStiffnesses("Body", 1.0)
 
     postureProxy = ALProxy("ALRobotPosture", ip_addr, port_num)
 
     if motionBool:
         postureProxy.goToPosture("StandInit", 0.2)
 
-    motion.setAngles("HeadPitch",0.3,0.1)
+    motion.setAngles("HeadPitch", 0.3, 0.1)
     tts.say("I'm starting to goal")
 
-
+    state = 'pitchalign'
     feed(motionBool)
 
 if __name__ == "__main__":
