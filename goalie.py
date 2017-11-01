@@ -141,13 +141,17 @@ def feed(motionBool):
             if state == 'pitchAlign':
                 res = alignBody(image,frame,motionBool)
                 if (res == "s"):
+                    if state != 'ballAlign':
+                        tts.say("Now I'm aligning with the ball!")
                     state = 'ballAlign'
 
             direction = drawCenterOfMass(image,frame)
             print distance
             print direction
-            if direction == ["s","d"] and distance < 700 and state != "pitchAlign":
+            if direction == ["s","d"] and distance < 500 and state != "pitchAlign":
+                tts.say("I'm kicking the ball!")
                 clearBall(motion)
+                tts.say("Now back to aligning with the pitch")
                 state = "pitchAlign"
             else:
                 cv2.line(frame,(0,height/2),(width,height/2),(0,255,0),1)
@@ -167,6 +171,8 @@ def feed(motionBool):
                     alignWithBall(direction, motionBool)
 
                 if direction[0]=="s":
+                    if state != "pitchAlign":
+                        tts.say("I'm aligning with the pitch!")
                     state = "pitchAlign"
 
                 prevSec = direction
@@ -188,12 +194,12 @@ def alignWithBall(directions,motionBool):
     if directions[0] == 'l':
         print 'Moving Left'
         if motionBool:
-            motion.moveToward(0, 0.8, 0)
+            motion.moveToward(0, 0.35, 0)
 
     elif directions[0] == 'r':
         print 'Moving Right'
         if motionBool:
-            motion.moveToward(0, -0.8, 0)
+            motion.moveToward(0, -0.35, 0)
     elif directions[0]=="s":
         print 'Stop Motion'
         if motionBool:
@@ -270,9 +276,9 @@ def centerHead(direction):
     #     motion.changeAngles('HeadYaw',0.0,0.1)
 
 def clearBall(motionProxy):
-    motionProxy.moveTo(0.3, 0.0, 0.0)
+    motionProxy.moveTo(0.45, 0.0, 0.0)
     motionProxy.waitUntilMoveIsFinished()
-    motionProxy.moveTo(-0.3, 0.0, 0.0)
+    motionProxy.moveTo(-0.45, 0.0, 0.0)
     motionProxy.waitUntilMoveIsFinished()
 
 
