@@ -9,6 +9,8 @@ from naoqi import ALBroker
 import argparse
 import math
 import almath
+import traceback
+
 ip_addr = "192.168.0.101"
 port_num = 9559
 
@@ -17,7 +19,7 @@ videoDevice = ALProxy('ALVideoDevice', ip_addr, port_num)
 motion = ALProxy("ALMotion", ip_addr, port_num)
 tts = ALProxy("ALTextToSpeech", ip_addr, port_num)
 postureProxy = ALProxy("ALRobotPosture", ip_addr, port_num)
-global distance
+
 distance = 0
 # subscribe top camera
 AL_kTopCamera = 0
@@ -25,6 +27,13 @@ AL_kQVGA = 1            # 320x240
 AL_kBGRColorSpace = 13
 captureDevice = videoDevice.subscribeCamera(
     "test", AL_kTopCamera, AL_kQVGA, AL_kBGRColorSpace, 10)
+
+myBroker = ALBroker("myBroker",
+   "0.0.0.0",   # listen to anyone
+   0,           # find a free port and use it
+   ip_addr,         # parent broker IP
+   port_num)       # parent broker port
+
 
 # create image
 width = 320
@@ -46,7 +55,9 @@ class FallDetectionModule(ALModule):
         # Subscribe to the FaceDetected event:
         global memory
         memory = ALProxy("ALMemory")
-        memory.subscribeToEvent("RobotFell")
+        memory.subscribeToEvent("robotHasFallen",
+            "FallDetection",
+            "FallDetected")
 
     def FallDetected(self, *_args):
         """ This will be called each time a face is
@@ -55,14 +66,18 @@ class FallDetectionModule(ALModule):
         """
         # Unsubscribe to the event when talking,
         # to avoid repetitions
-        memory.subscribeToEvent("RobotFell")
+        memory.subscribeToEvent("robotHasFallen",
+            "FallDetection")
+
 
         self.tts.say("I have fallen")
         # Send robot to Stand Init
         postureProxy.goToPosture("StandInit", 0.5)
 
         # Subscribe again to the event
-        memory.subscribeToEvent("RobotFell")
+        memory.subscribeToEvent("robotHasFallen",
+            "FallDetection",
+            "FallDetected")
 
 
 
@@ -76,10 +91,12 @@ def feed(motionBool):
     height = 240
     image = np.zeros((height, width, 3), np.uint8)
     global distance
+    FallDetection = FallDetectionModule("FallDetection")
     while True:
+
         #print 'Live feed'
         # get image
-        result = videoDevice.getImageRemote(captureDevice);
+        result = videoDevice.getImageRemote(captureDevice)
 
         if result == None:
             print 'cannot capture.'
@@ -105,9 +122,9 @@ def feed(motionBool):
                     state = 'ballAlign'
 
             direction = drawCenterOfMass(image,frame)
-            print distance[0]
+            print distance
             print direction
-            if direction == ["s","d"] and distance[0] < 700 and state != "pitchAlign":
+            if direction == ["s","d"] and distance < 700 and state != "pitchAlign":
                 clearBall(motion)
                 state = "pitchAlign"
             else:
@@ -233,83 +250,8 @@ def centerHead(direction):
 def clearBall(motionProxy):
     motionProxy.moveTo(0.3, 0.0, 0.0)
     motionProxy.waitUntilMoveIsFinished()
-    kick()
     motionProxy.moveTo(-0.3, 0.0, 0.0)
     motionProxy.waitUntilMoveIsFinished()
-
-def kick():
-    postureProxy.goToPosture("StandInit", 0.5)
-
-    # Activate Whole Body Balancer
-    isEnabled  = True
-    motion.wbEnable(isEnabled)
-
-    # Legs are constrained fixed
-    stateName  = "Fixed"
-    supportLeg = "Legs"
-    motion.wbFootState(stateName, supportLeg)
-
-    # Constraint Balance Motion
-    isEnable   = True
-    supportLeg = "Legs"
-    motion.wbEnableBalanceConstraint(isEnable, supportLeg)
-
-    # Com go to LLeg
-    supportLeg = "LLeg"
-    duration   = 2.0
-    motion.wbGoToBalance(supportLeg, duration)
-
-    # RLeg is free
-    stateName  = "Free"
-    supportLeg = "RLeg"
-    motion.wbFootState(stateName, supportLeg)
-
-    # RLeg is optimized
-    effector = "RLeg"
-    axisMask = 63
-    frame    = motion.FRAME_WORLD
-
-    # Motion of the RLeg
-    times   = [2.0, 2.7, 4.5]
-
-    path = computePath(motion,effector, frame)
-
-    motion.transformInterpolations(effector, frame, path, axisMask, times)
-
-    postureProxy.goToPosture("StandInit", 0.3)
-
-    time.sleep(10000)
-def computePath(proxy,effector, frame):
-    dx      = 0.05                 # translation axis X (meters)
-    dz      = 0.05                 # translation axis Z (meters)
-    dwy     = 5.0*almath.TO_RAD    # rotation axis Y (radian)
-
-    useSensorValues = False
-
-    path = []
-    currentTf = []
-    try:
-        currentTf = proxy.getTransform(effector, frame, useSensorValues)
-    except Exception, errorMsg:
-        print str(errorMsg)
-        print "This example is not allowed on this robot."
-        exit()
-
-    # 1
-    targetTf  = almath.Transform(currentTf)
-    targetTf *= almath.Transform(-dx, 0.0, dz)
-    targetTf *= almath.Transform().fromRotY(dwy)
-    path.append(list(targetTf.toVector()))
-
-    # 2
-    targetTf  = almath.Transform(currentTf)
-    targetTf *= almath.Transform(dx, 0.0, dz)
-    path.append(list(targetTf.toVector()))
-
-    # 3
-    path.append(currentTf)
-
-    return path
 
 
 def drawCenterOfMass(image,frame):
@@ -363,7 +305,7 @@ def drawCenterOfMass(image,frame):
                     theta = motion.getAngles("HeadPitch", True)
                     calculated_floor_dist = calculated_cam_dist*np.cos(theta)
                     global distance
-                    distance = calculated_floor_dist
+                    distance = calculated_floor_dist[0]
 
         dX = width/2 - circles[0]
 
@@ -406,12 +348,7 @@ def main():
     args = parser.parse_args()
 
     motionBool = args.mEnabled
-
-    myBroker = ALBroker("myBroker",
-       "0.0.0.0",   # listen to anyone
-       0,           # find a free port and use it
-       ip_addr,         # parent broker IP
-       port_num)       # parent broker port
+    # FallDetection = FallDetectionModule("FallDetection")
 
     if motionBool:
         motion.setStiffnesses("Body", 1.0)
@@ -420,7 +357,8 @@ def main():
         postureProxy.goToPosture("StandInit", 0.2)
 
     motion.setAngles("HeadPitch", 0.3, 0.1)
-    tts.say("I'm starting to goal")
+    tts.say("I'm starting to goal keep!")
+
 
     try:
         feed(motionBool)
@@ -430,8 +368,6 @@ def main():
         videoDevice.unsubscribe(captureDevice)
         sys.exit(0)
 
-    global FallDetection
-    FallDetection = FallDetectionModule("FallDetection")
 
 if __name__ == "__main__":
     main()
