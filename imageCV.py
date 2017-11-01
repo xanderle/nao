@@ -25,10 +25,10 @@ captureDevice = videoDevice.subscribeCamera(
 width = 320
 height = 240
 image = np.zeros((height, width, 3), np.uint8)
-prevSec = ["0","0"]
+
 
 def feed(motionBool):
-
+    prevSec = ["0","0"]
     state = 'pitchalign'
     tts.say("I'm aligning with the pitch")
 
@@ -191,11 +191,11 @@ def drawCenterOfMass(image,frame):
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     #redLower = np.array([0,100,100])
     #redUpper = np.array([5,255,255])
-    redLower = np.array([167,140,50])
-    redUpper = np.array([187,191,157])
+    redLower = np.array([-10,200,110])
+    redUpper = np.array([10,240,240])
     mask = cv2.inRange(hsv, redLower, redUpper)
-    redLower = np.array([-10,155,70])
-    redUpper = np.array([10,175,153])
+    redLower = np.array([170,200,130])
+    redUpper = np.array([190,230,215])
     mask1 = cv2.inRange(hsv,redLower,redUpper)
     mask = cv2.addWeighted(mask,1.0,mask1,1,0,0)
     mask = cv2.dilate(mask, None, iterations=2)
@@ -220,7 +220,7 @@ def drawCenterOfMass(image,frame):
             else:
                 #print(x,y,radius)
                 center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
-                if radius > 8:
+                if radius > 5:
 
                     cv2.circle(frame, (int(x), int(y)), int(radius),(0, 255, 255), 2)
                     circles= x,y,radius
