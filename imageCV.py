@@ -5,7 +5,7 @@ from copy import deepcopy
 from naoqi import ALProxy
 import argparse
 
-ip_addr = "169.254.211.199"
+ip_addr = "192.168.0.101"
 port_num = 9559
 
 # get NAOqi module proxy
@@ -85,12 +85,13 @@ def feed(motionBool):
                 state = "pitchAlign"
             prevSec = direction
 
-        # exit by [ESC]
+        # exit by [ESC
         if cv2.waitKey(33) == 27:
             print 'Stop Motion'
             if motionBool:
                 motion.moveToward(0,0,0)
             break
+
     videoDevice.unsubscribe(captureDevice)
 
 def alignWithBall(directions,motionBool):
@@ -118,7 +119,8 @@ def alignWithBall(directions,motionBool):
 
 def alignBody(image,frame, motionBool):
     gray_image = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
-    mask_white = cv2.inRange(gray_image,0,80)
+    #mask_white = cv2.inRange(gray_image,0,80)
+    mask_white = cv2.inRange(gray_image,200,255)
     mask_image = cv2.bitwise_and(gray_image,mask_white)
     #cv2.imshow("Mask White",mask_white);
     kernel_size = 5,5
