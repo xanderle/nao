@@ -13,7 +13,8 @@ videoDevice = ALProxy('ALVideoDevice', ip_addr, port_num)
 motion = ALProxy("ALMotion", ip_addr, port_num)
 tts = ALProxy("ALTextToSpeech", ip_addr, port_num)
 
-
+global distance
+distance = 0
 # subscribe top camera
 AL_kTopCamera = 0
 AL_kQVGA = 1            # 320x240
@@ -28,6 +29,7 @@ image = np.zeros((height, width, 3), np.uint8)
 
 
 def feed(motionBool):
+    distance = 0.030
     prevSec = ["0","0"]
     state = 'pitchalign'
     tts.say("I'm aligning with the pitch")
@@ -35,6 +37,7 @@ def feed(motionBool):
     width = 320
     height = 240
     image = np.zeros((height, width, 3), np.uint8)
+    global distance
     while True:
         #print 'Live feed'
         # get image
@@ -61,29 +64,35 @@ def feed(motionBool):
             if state == 'pitchAlign':
                 res = alignBody(image,frame,motionBool)
                 if (res == "s"):
-
                     state = 'ballAlign'
 
             direction = drawCenterOfMass(image,frame)
-
-            cv2.line(frame,(0,height/2),(width,height/2),(0,255,0),1)
-            cv2.line(frame,(width/2,0),(width/2,height),(0,255,0),1)
-            cv2.imshow("Big Brother", frame)
-            cv2.imwrite("file.png",frame)
-            if(prevSec == ["l","d"] and direction == ["0","0"]):
-                tts.say("Dive Left")
-                print("Raise Left")
-            if(prevSec == ["r","d"] and direction == ["0","0"]):
-                tts.say("Dive Right")
-                print("Raise Right")
-            # centre head on ball
-            # centerHead(direction)
-            # move left or right for ball
-            if state == 'ballAlign':
-                alignWithBall(direction, motionBool)
-            if direction[0]=="s":
+            print distance[0]
+            print direction
+            if direction == ["s","d"] and distance[0] < 700 and state != pitchAlign:
+                clearBall(motion)
                 state = "pitchAlign"
-            prevSec = direction
+            else:
+                cv2.line(frame,(0,height/2),(width,height/2),(0,255,0),1)
+                cv2.line(frame,(width/2,0),(width/2,height),(0,255,0),1)
+                cv2.imshow("Big Brother", frame)
+                cv2.imwrite("file.png",frame)
+                if(prevSec == ["l","d"] and direction == ["0","0"]):
+                    tts.say("Dive Left")
+                    print("Raise Left")
+                elif(prevSec == ["r","d"] and direction == ["0","0"]):
+                    tts.say("Dive Right")
+                    print("Raise Right")
+                # centre head on ball
+                centerHead(direction)
+                # move left or right for ball
+                if state == 'ballAlign':
+                    alignWithBall(direction, motionBool)
+
+                if direction[0]=="s":
+                    state = "pitchAlign"
+
+                prevSec = direction
 
         # exit by [ESC
         if cv2.waitKey(33) == 27:
@@ -174,13 +183,13 @@ def centerHead(direction):
     elif(direction[1]=="s"):
         motion.changeAngles("HeadPitch",0.0,0.1)
     #print(direction)
-
-    if(direction[0] =='l'):
-        motion.changeAngles('HeadYaw',0.1,0.1)
-    elif(direction[0] =='r'):
-        motion.changeAngles('HeadYaw',-0.1,0.1)
-    elif(direction[0]=='s'):
-        motion.changeAngles('HeadYaw',0.0,0.1)
+    #
+    # if(direction[0] =='l'):
+    #     motion.changeAngles('HeadYaw',0.1,0.1)
+    # elif(direction[0] =='r'):
+    #     motion.changeAngles('HeadYaw',-0.1,0.1)
+    # elif(direction[0]=='s'):
+    #     motion.changeAngles('HeadYaw',0.0,0.1)
 
 def clearBall(motionProxy):
     motionProxy.moveTo(0.5, 0.0, 0.0)
@@ -221,6 +230,7 @@ def drawCenterOfMass(image,frame):
                 asdf=0
             else:
                 #print(x,y,radius)
+
                 center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
                 if radius > 5:
 
@@ -231,6 +241,14 @@ def drawCenterOfMass(image,frame):
                     max_y = circles[1]
                     max_r = circles[2]
 
+                    diameter = radius*2
+                    actual_diameter = 65
+                    focal_length = 300
+                    calculated_cam_dist = actual_diameter*focal_length/diameter
+                    theta = motion.getAngles("HeadPitch", True)
+                    calculated_floor_dist = calculated_cam_dist*np.cos(theta)
+                    global distance
+                    distance = calculated_floor_dist
 
         dX = width/2 - circles[0]
 
